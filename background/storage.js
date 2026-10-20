@@ -11,7 +11,8 @@ const StorageService = {
      */
     KEYS: {
         WORKSPACES: 'workspaces',
-        ACTIVE_WORKSPACE_ID: 'activeWorkspaceId'
+        ACTIVE_WORKSPACE_ID: 'activeWorkspaceId',
+        LAST_CLOSED_WORKSPACE_ID: 'lastClosedWorkspaceId'
     },
 
     /**
@@ -113,6 +114,32 @@ const StorageService = {
             Logger.debug(`StorageService: Active workspace set to ${workspaceId}`);
         } catch (error) {
             console.error('StorageService: Error setting active ID', error);
+        }
+    },
+
+    async getLastClosedWorkspaceId() {
+        try {
+            const result = await browser.storage.local.get(this.KEYS.LAST_CLOSED_WORKSPACE_ID);
+            return result[this.KEYS.LAST_CLOSED_WORKSPACE_ID] || null;
+        } catch (error) {
+            console.error('StorageService: Error fetching last closed workspace ID', error);
+            return null;
+        }
+    },
+
+    async setLastClosedWorkspaceId(workspaceId) {
+        try {
+            await browser.storage.local.set({ [this.KEYS.LAST_CLOSED_WORKSPACE_ID]: workspaceId });
+        } catch (error) {
+            console.error('StorageService: Error setting last closed workspace ID', error);
+        }
+    },
+
+    async clearLastClosedWorkspaceId() {
+        try {
+            await browser.storage.local.remove(this.KEYS.LAST_CLOSED_WORKSPACE_ID);
+        } catch (error) {
+            console.error('StorageService: Error clearing last closed workspace ID', error);
         }
     },
 

@@ -10,6 +10,7 @@ This document details the core functionalities implemented in the Firefox Worksp
 
 ## 2. Session Persistence
 - **Automatic Sync:** Real-time saving of tab changes (creation, movement, updates) within a workspace.
+- **Startup Restore:** Reopens the most recently closed workspace when Firefox starts; if none was closed, Firefox starts normally.
 - **Lazy Loading (Performance):** When restoring a workspace, background tabs are created in a "discarded" state. This prevents them from consuming memory or CPU until they are explicitly clicked, ensuring near-instant window restoration even for workspaces with 100+ tabs.
 - **Tab Groups:** Support for Firefox's native tab groups (experimental) to maintain complex tab structures.
 - **Enhanced Pin Support:** Robust restoration of pinned tabs that appear immediately fixed (no UI jumping), maintaining their state across sessions.

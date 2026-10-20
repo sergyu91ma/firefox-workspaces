@@ -27,6 +27,7 @@ The extension uses a persistent background script (non-persistent in Manifest V3
 Instead of manual saving, the extension employs a reactive model:
 - **Listeners:** The manager listens to `tabs.onUpdated`, `tabs.onMoved`, `tabs.onCreated`, and `tabs.onRemoved`.
 - **Throttling/Locking:** During workspace restoration (opening a window), a "Lock" is applied to prevent the save-listeners from overwriting the clean workspace state with the intermediate tab states while the window is still loading.
+- **Startup Restore:** The most recently closed workspace ID is persisted through `StorageService` and reopened after startup hydration. No pending ID means normal Firefox startup behavior.
 - **Lazy Loading Implementation:** During restoration, tabs are created with the `discarded: true` property (except for pinned and active tabs). This utilizes Firefox's native lazy-loading capability to minimize resource usage during mass tab restoration.
 
 ## 2. Step-by-Step Implementation Log

@@ -105,7 +105,7 @@ if (browser.tabGroups && browser.tabGroups.onUpdated) {
 
 // Window Closure
 browser.windows.onRemoved.addListener((windowId) => {
-    WorkspaceManager.handleWindowRemoved(windowId);
+    return WorkspaceManager.handleWindowRemoved(windowId);
 });
 
 // --- Initialization ---
@@ -124,7 +124,7 @@ function initializeExtension() {
 }
 
 browser.runtime.onStartup.addListener(() => {
-    initializeExtension();
+    return initializeExtension().then(() => WorkspaceManager.restoreLastClosedWorkspace());
 });
 
 browser.runtime.onInstalled.addListener(() => {

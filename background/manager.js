@@ -358,9 +358,28 @@ const WorkspaceManager = {
             if (ws) {
                 ws.windowId = null; 
                 await StorageService.saveWorkspace(ws);
+                await StorageService.setLastClosedWorkspaceId(workspaceId);
             }
             StateManager.unlinkWindow(windowId);
             Logger.debug(`Manager: Window ${windowId} closed. Workspace ${workspaceId} marked inactive.`);
+        }
+    },
+
+    async restoreLastClosedWorkspace() {
+        const workspaceId = await StorageService.getLastClosedWorkspaceId();
+        if (!workspaceId) return;
+
+        const workspaces = await StorageService.getWorkspaces();
+        if (!workspaces.some(workspace => workspace.id === workspaceId)) {
+            await StorageService.clearLastClosedWorkspaceId();
+            return;
+        }
+
+        try {
+            await this.openWorkspace(workspaceId);
+            await StorageService.clearLastClosedWorkspaceId();
+        } catch (error) {
+            console.error('Manager: Failed to restore last closed workspace', error);
         }
     },
 
