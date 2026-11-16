@@ -12,7 +12,35 @@ const StorageService = {
     KEYS: {
         WORKSPACES: 'workspaces',
         ACTIVE_WORKSPACE_ID: 'activeWorkspaceId',
-        LAST_CLOSED_WORKSPACE_ID: 'lastClosedWorkspaceId'
+        LAST_CLOSED_WORKSPACE_ID: 'lastClosedWorkspaceId',
+        // Stored in storage.session: cleared on browser restart, so its absence
+        // means window IDs persisted in local storage belong to a previous session.
+        BROWSER_SESSION_MARKER: 'browserSessionActive'
+    },
+
+    /**
+     * Returns true when the background already ran during this browser session.
+     * Window IDs are only meaningful within the session that produced them.
+     * @returns {Promise<boolean>}
+     */
+    async isSameBrowserSession() {
+        try {
+            if (!browser.storage.session) return false;
+            const result = await browser.storage.session.get(this.KEYS.BROWSER_SESSION_MARKER);
+            return !!result[this.KEYS.BROWSER_SESSION_MARKER];
+        } catch (error) {
+            console.error('StorageService: Error reading session marker', error);
+            return false;
+        }
+    },
+
+    async markBrowserSession() {
+        try {
+            if (!browser.storage.session) return;
+            await browser.storage.session.set({ [this.KEYS.BROWSER_SESSION_MARKER]: true });
+        } catch (error) {
+            console.error('StorageService: Error writing session marker', error);
+        }
     },
 
     /**
@@ -110,6 +138,7 @@ const StorageService = {
      */
     async setActiveWorkspaceId(workspaceId) {
         try {
+            if ((await this.getActiveWorkspaceId()) === workspaceId) return;
             await browser.storage.local.set({ [this.KEYS.ACTIVE_WORKSPACE_ID]: workspaceId });
             Logger.debug(`StorageService: Active workspace set to ${workspaceId}`);
         } catch (error) {

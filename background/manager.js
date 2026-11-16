@@ -6,7 +6,7 @@
 const WorkspaceManager = {
     normalizeUrl(url) {
         if (!url) return 'about:newtab';
-        if (url === 'about:blank') return 'about:newtab';
+        if (url === 'about:blank' || url === 'about:home') return 'about:newtab';
         return url;
     },
 
@@ -54,20 +54,30 @@ const WorkspaceManager = {
     async hydrateMap() {
         const workspaces = await StorageService.getWorkspaces();
         StateManager.resetMap();
-        
+
+        // Firefox reuses low window IDs after a restart, so a stored windowId from a
+        // previous session can collide with an unrelated fresh window. Only trust stored
+        // IDs within the same browser session; otherwise require a tab signature match.
+        const trustStoredWindowIds = await StorageService.isSameBrowserSession();
+
         const allWindows = await browser.windows.getAll();
         const openWindowIds = new Set(allWindows.map(w => w.id));
 
         const linkedWorkspaceIds = new Set();
 
         for (const ws of workspaces) {
-            if (ws.windowId && openWindowIds.has(ws.windowId)) {
+            let storedIdValid = !!ws.windowId && openWindowIds.has(ws.windowId);
+            if (storedIdValid && !trustStoredWindowIds) {
+                storedIdValid = await this.windowMatchesWorkspace(ws.windowId, ws);
+            }
+
+            if (storedIdValid) {
                 StateManager.linkWindow(ws.windowId, ws.id);
                 linkedWorkspaceIds.add(ws.id);
                 // Restore Badge via Event
                 EventBus.emit(Events.WINDOW_LINKED, { windowId: ws.windowId, workspaceId: ws.id });
             } else if (ws.windowId) {
-                // Window closed externally
+                // Window closed externally or ID belongs to a previous session
                 ws.windowId = null;
                 await StorageService.saveWorkspace(ws);
             }
@@ -127,7 +137,58 @@ const WorkspaceManager = {
             Logger.debug(`Manager: Re-linked restored window ${windowId} to workspace ${matchedWorkspace.id}`);
         }
 
+        await StorageService.markBrowserSession();
         Logger.debug('Manager: Hydrated window map', StateManager.windowToWorkspaceMap);
+    },
+
+    async windowMatchesWorkspace(windowId, ws) {
+        if (!ws.tabs || ws.tabs.length === 0) return false;
+        try {
+            const tabs = await browser.tabs.query({ windowId });
+            return tabs.length > 0 && this.buildTabSignature(tabs) === this.buildTabSignature(ws.tabs);
+        } catch (e) {
+            return false;
+        }
+    },
+
+    isBlankUrl(url) {
+        return !url || ['about:blank', 'about:newtab', 'about:home'].includes(url);
+    },
+
+    /**
+     * Waits until Firefox session restore stops creating windows/tabs, so hydration
+     * sees the final window layout. Bounded to avoid delaying startup indefinitely.
+     */
+    async waitForStartupWindowsToSettle(intervalMs = 300, maxWaitMs = 4000) {
+        const snapshot = async () => {
+            const windows = await browser.windows.getAll({ populate: true });
+            return windows
+                .map(w => `${w.id}:${(w.tabs || []).map(t => t.url).join(',')}`)
+                .join('|');
+        };
+
+        let previous = await snapshot();
+        let stableReads = 0;
+        const deadline = Date.now() + maxWaitMs;
+
+        while (Date.now() < deadline && stableReads < 2) {
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            const current = await snapshot();
+            stableReads = current === previous ? stableReads + 1 : 0;
+            previous = current;
+        }
+    },
+
+    /**
+     * Tracks the most recently focused workspace so startup can reopen it,
+     * even when Firefox quits without firing windows.onRemoved.
+     */
+    async handleWindowFocused(windowId) {
+        if (windowId === browser.windows.WINDOW_ID_NONE) return;
+        const workspaceId = StateManager.getWorkspaceId(windowId);
+        if (workspaceId) {
+            await StorageService.setActiveWorkspaceId(workspaceId);
+        }
     },
 
     /**
@@ -216,12 +277,14 @@ const WorkspaceManager = {
         const ws = workspaces.find(w => w.id === workspaceId);
         if (!ws) return;
 
-        const currentWin = await browser.windows.getCurrent();
-        if (ws.windowId === currentWin.id) return;
+        let currentWin = null;
+        try { currentWin = await browser.windows.getCurrent(); } catch (e) { /* No window yet */ }
+        if (currentWin && ws.windowId === currentWin.id) return;
 
         if (ws.windowId) {
             try {
                 await browser.windows.update(ws.windowId, { focused: true });
+                await StorageService.setActiveWorkspaceId(ws.id);
                 return;
             } catch (e) { /* Stale ID */ }
         }
@@ -239,7 +302,8 @@ const WorkspaceManager = {
             ws.windowId = newWindowId;
             StateManager.linkWindow(newWindowId, ws.id);
             await StorageService.saveWorkspace(ws);
-            
+            await StorageService.setActiveWorkspaceId(ws.id);
+
             EventBus.emit(Events.WORKSPACE_OPENED, { windowId: newWindowId, workspace: ws });
 
             if (ws.tabs && ws.tabs.length > 0) {
@@ -250,14 +314,16 @@ const WorkspaceManager = {
                     const t = tabsToRestore[i];
                     let url = t.url;
                     
-                    if (!url || (!url.startsWith('http') && !url.startsWith('file') && !url.startsWith('about'))) {
+                    // Extensions cannot open privileged about: pages (about:home, about:config...)
+                    // or file: URLs via tabs.create; fall back to a new tab for those.
+                    if (!url || (!url.startsWith('http') && url !== 'about:blank')) {
                         url = 'about:newtab';
                     }
 
                     let newTab = null;
                     try {
-                        // Pinned tabs cannot be discarded in Firefox API
-                        const isDiscarded = !t.active && !t.pinned;
+                        // Pinned tabs cannot be discarded, and discarded tabs require a real URL
+                        const isDiscarded = !t.active && !t.pinned && url.startsWith('http');
                         const createOptions = {
                             windowId: newWindowId,
                             pinned: t.pinned || false,
@@ -284,7 +350,7 @@ const WorkspaceManager = {
                         if (t.cookieStoreId && t.cookieStoreId !== 'firefox-default') {
                             try {
                                 console.warn(`Manager: Container ${t.cookieStoreId} invalid. Falling back.`);
-                                const isDiscardedFallback = !t.active && !t.pinned;
+                                const isDiscardedFallback = !t.active && !t.pinned && url.startsWith('http');
                                 const fallbackOptions = {
                                     windowId: newWindowId,
                                     url: url !== 'about:newtab' ? url : undefined,
@@ -309,7 +375,9 @@ const WorkspaceManager = {
                     createdTabIds.push(newTab ? newTab.id : null);
                 }
 
-                if (initialTabId) {
+                // Only drop the placeholder tab if something was restored; removing the
+                // window's last tab would close the window (and possibly the browser).
+                if (initialTabId && createdTabIds.some(id => id)) {
                     browser.tabs.remove(initialTabId).catch(() => {});
                 }
 
@@ -365,21 +433,53 @@ const WorkspaceManager = {
         }
     },
 
+    /**
+     * Startup flow: reopens the most recently used workspace.
+     * Prefers the last focused workspace (reliable across "Quit"), falling back to
+     * the last closed one. If a new window had to be created, Firefox's empty
+     * startup window is closed so the user lands directly in the workspace.
+     */
     async restoreLastClosedWorkspace() {
-        const workspaceId = await StorageService.getLastClosedWorkspaceId();
+        const workspaces = await StorageService.getWorkspaces();
+        const exists = id => !!id && workspaces.some(workspace => workspace.id === id);
+
+        const activeId = await StorageService.getActiveWorkspaceId();
+        const lastClosedId = await StorageService.getLastClosedWorkspaceId();
+        const workspaceId = exists(activeId) ? activeId : (exists(lastClosedId) ? lastClosedId : null);
+
+        if (lastClosedId) await StorageService.clearLastClosedWorkspaceId();
         if (!workspaceId) return;
 
-        const workspaces = await StorageService.getWorkspaces();
-        if (!workspaces.some(workspace => workspace.id === workspaceId)) {
-            await StorageService.clearLastClosedWorkspaceId();
-            return;
-        }
-
         try {
+            const windowsBefore = await browser.windows.getAll({ populate: true });
+            const blankUnlinkedWindowIds = windowsBefore
+                .filter(w => !StateManager.getWorkspaceId(w.id))
+                .filter(w => (w.tabs || []).every(t => this.isBlankUrl(t.url)))
+                .map(w => w.id);
+
             await this.openWorkspace(workspaceId);
-            await StorageService.clearLastClosedWorkspaceId();
+
+            const restored = (await StorageService.getWorkspaces()).find(w => w.id === workspaceId);
+            const createdNewWindow = restored && restored.windowId
+                && !windowsBefore.some(w => w.id === restored.windowId);
+
+            // Never close the startup window unless the workspace window survived the
+            // restore; otherwise the browser would be left with no windows and quit.
+            let workspaceWindowAlive = false;
+            if (createdNewWindow) {
+                try {
+                    const win = await browser.windows.get(restored.windowId, { populate: true });
+                    workspaceWindowAlive = !!win && (win.tabs || []).length > 0;
+                } catch (e) { /* Window is gone */ }
+            }
+
+            if (workspaceWindowAlive) {
+                for (const windowId of blankUnlinkedWindowIds) {
+                    browser.windows.remove(windowId).catch(() => {});
+                }
+            }
         } catch (error) {
-            console.error('Manager: Failed to restore last closed workspace', error);
+            console.error('Manager: Failed to restore last used workspace', error);
         }
     },
 
@@ -393,6 +493,7 @@ const WorkspaceManager = {
         Logger.debug(`Manager: Capturing window ${currentWin.id} for workspace ${workspaceId}`);
         // Link immediately in memory
         StateManager.linkWindow(currentWin.id, workspaceId);
+        await StorageService.setActiveWorkspaceId(workspaceId);
 
         EventBus.emit(Events.WINDOW_LINKED, { windowId: currentWin.id, workspaceId });
         

@@ -123,8 +123,18 @@ function initializeExtension() {
     return bootstrapPromise;
 }
 
-browser.runtime.onStartup.addListener(() => {
-    return initializeExtension().then(() => WorkspaceManager.restoreLastClosedWorkspace());
+// Track the last focused workspace for startup restore
+browser.windows.onFocusChanged.addListener((windowId) => {
+    return initializeExtension().then(() => WorkspaceManager.handleWindowFocused(windowId));
+});
+
+browser.runtime.onStartup.addListener(async () => {
+    await initializeExtension();
+    // Session restore may still be creating windows; re-hydrate once it settles
+    // so restored workspace windows are re-linked instead of duplicated.
+    await WorkspaceManager.waitForStartupWindowsToSettle();
+    await WorkspaceManager.hydrateMap();
+    await WorkspaceManager.restoreLastClosedWorkspace();
 });
 
 browser.runtime.onInstalled.addListener(() => {
