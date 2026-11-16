@@ -52,6 +52,14 @@ browser.runtime.onMessage.addListener(async (message) => {
         await MenusManager.updateSubmenus(); 
         return { success: true };
     }
+    if (message.type === 'GET_WINDOW_COLORING') {
+        return { enabled: await StorageService.getWindowColoringEnabled() };
+    }
+    if (message.type === 'SET_WINDOW_COLORING') {
+        await initializeExtension();
+        await ThemeManager.setEnabled(message.enabled);
+        return { success: true };
+    }
     if (message.type === 'UPDATE_WORKSPACE') {
         if (message.workspaceId === 'import_destructive') {
             Logger.debug('Background: Destructive import detected. Re-hydrating...');
@@ -118,6 +126,7 @@ function initializeExtension() {
         await WorkspaceManager.hydrateMap();
         await MenusManager.init();
         IndicatorManager.init();
+        await ThemeManager.init();
     })();
 
     return bootstrapPromise;

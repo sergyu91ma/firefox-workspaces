@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveWindowBtn: document.getElementById('save-window-btn'),
         exportWorkspacesBtn: document.getElementById('export-workspaces-btn'),
         restoreWorkspacesBtn: document.getElementById('restore-workspaces-btn'),
+        windowColoringBtn: document.getElementById('window-coloring-btn'),
         toggleReorderBtn: document.getElementById('toggle-reorder-btn')
     };
 
@@ -64,6 +65,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('click', () => uiRefs.optionsDropdown.classList.add('hidden'));
 
     uiRefs.saveWindowBtn.addEventListener('click', () => PopupLogic.startCreate('save-window'));
+
+    // Window coloring toggle (setting is owned by the background)
+    const renderColoringState = (enabled) => {
+        uiRefs.windowColoringBtn.setAttribute('aria-checked', String(enabled));
+    };
+    browser.runtime.sendMessage({ type: 'GET_WINDOW_COLORING' })
+        .then(res => renderColoringState(!!(res && res.enabled)))
+        .catch(() => {});
+    uiRefs.windowColoringBtn.addEventListener('click', async () => {
+        uiRefs.optionsDropdown.classList.add('hidden');
+        const enabled = uiRefs.windowColoringBtn.getAttribute('aria-checked') !== 'true';
+        renderColoringState(enabled);
+        await browser.runtime.sendMessage({ type: 'SET_WINDOW_COLORING', enabled });
+    });
 
     // I/O Listeners
     uiRefs.exportWorkspacesBtn.addEventListener('click', () => {

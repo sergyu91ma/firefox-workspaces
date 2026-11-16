@@ -13,6 +13,7 @@ const StorageService = {
         WORKSPACES: 'workspaces',
         ACTIVE_WORKSPACE_ID: 'activeWorkspaceId',
         LAST_CLOSED_WORKSPACE_ID: 'lastClosedWorkspaceId',
+        WINDOW_COLORING_ENABLED: 'windowColoringEnabled',
         // Stored in storage.session: cleared on browser restart, so its absence
         // means window IDs persisted in local storage belong to a previous session.
         BROWSER_SESSION_MARKER: 'browserSessionActive'
@@ -169,6 +170,28 @@ const StorageService = {
             await browser.storage.local.remove(this.KEYS.LAST_CLOSED_WORKSPACE_ID);
         } catch (error) {
             console.error('StorageService: Error clearing last closed workspace ID', error);
+        }
+    },
+
+    /**
+     * Whether workspace windows get tinted with the workspace color (default: on).
+     * @returns {Promise<boolean>}
+     */
+    async getWindowColoringEnabled() {
+        try {
+            const result = await browser.storage.local.get(this.KEYS.WINDOW_COLORING_ENABLED);
+            return result[this.KEYS.WINDOW_COLORING_ENABLED] !== false;
+        } catch (error) {
+            console.error('StorageService: Error fetching window coloring setting', error);
+            return true;
+        }
+    },
+
+    async setWindowColoringEnabled(enabled) {
+        try {
+            await browser.storage.local.set({ [this.KEYS.WINDOW_COLORING_ENABLED]: !!enabled });
+        } catch (error) {
+            console.error('StorageService: Error saving window coloring setting', error);
         }
     },
 

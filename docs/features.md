@@ -20,6 +20,7 @@ This document details the core functionalities implemented in the Slim Workspace
 ## 3. Advanced UI/UX
 - **Dynamic Icons:** Integration with Heroicons using a CSS Mask system for `currentColor` support.
 - **Dynamic Toolbar Icon:** The extension's main toolbar icon automatically changes color to match the active workspace in the current window. This provides immediate visual context without opening the popup.
+- **Window Coloring:** Like Microsoft Edge, each workspace window's tab strip and toolbar are tinted with the workspace color, and the selected tab gets an accent line in that color. It follows the system light/dark mode, leaves unmanaged windows untouched, and can be turned off from the popup menu ("Color browser windows"). Note: while enabled it replaces any installed Firefox theme in workspace windows.
 - **Active Identification:** A prominent "Pill" indicator in the popup header shows the active workspace name with its associated color.
 - **State Indicators:** Visual badges for "Open" workspaces that are currently in other windows.
 - **Tab Count:** Each workspace in the popup shows how many tabs it has (e.g. "12 tabs") under its name, similar to Microsoft Edge. Open workspaces use the live window count; closed ones use the saved tabs.

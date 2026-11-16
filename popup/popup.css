@@ -785,3 +785,8 @@ main {
     }
 }
 
+/* Checkable dropdown item: the check is hidden while the option is off */
+.dropdown-item[aria-checked="false"] .toggle-check {
+    visibility: hidden;
+}
+

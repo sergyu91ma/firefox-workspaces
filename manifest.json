@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Slim Workspaces",
-  "version": "1.1.0",
+  "version": "1.1.1.0",
   "description": "Workspace management inspired by Microsoft Edge for Firefox.",
   "icons": {
     "48": "icons/addon-icon.svg",
@@ -15,7 +15,8 @@
     "tabGroups",
     "menus",
     "contextualIdentities",
-    "cookies"
+    "cookies",
+    "theme"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -30,6 +31,7 @@
       "background/state.js",
       "background/menus.js",
       "background/indicator.js",
+      "background/theme.js",
       "background/manager.js",
       "background/background.js"
     ]
