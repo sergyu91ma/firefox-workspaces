@@ -1,6 +1,6 @@
 # Design Guidelines
 
-The Firefox Workspaces extension adheres to the **Mozilla Protocol** design system and the principles of **Mozilla UX**.
+The Slim Workspaces extension adheres to the **Mozilla Protocol** design system and the principles of **Mozilla UX**.
 
 ## 🎨 Color Palette (Mozilla Protocol)
 We strictly use the colors defined in the [Mozilla Protocol Color Fundamentals](https://protocol.mozilla.org/docs/fundamentals/color):

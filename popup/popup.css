@@ -388,11 +388,31 @@ main {
     flex-shrink: 0;
 }
 
-.workspace-name {
+.workspace-text {
     flex-grow: 1;
+    min-width: 0; /* Allow ellipsis inside flex item */
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.workspace-name {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.workspace-tab-count {
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--secondary-text-light);
+    white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+    .workspace-tab-count {
+        color: var(--secondary-text-dark);
+    }
 }
 
 .status-indicator {

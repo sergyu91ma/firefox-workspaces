@@ -39,7 +39,12 @@ const PopupUI = {
     /**
      * Renders the workspace list
      */
-    renderList(workspaces, activeWindowId, openWindowIds, onSwitch, onDelete, onEdit, onReorder) {
+    formatTabCount(count) {
+        if (count === 0) return 'No tabs';
+        return count === 1 ? '1 tab' : `${count} tabs`;
+    },
+
+    renderList(workspaces, activeWindowId, openWindowIds, onSwitch, onDelete, onEdit, onReorder, tabCountsByWindow = new Map()) {
         const isReordering = this.ui.workspaceList.classList.contains('reordering');
         this.ui.workspaceList.innerHTML = '';
         
@@ -54,12 +59,20 @@ const PopupUI = {
             const li = clone.querySelector('.workspace-item');
             const colorDiv = clone.querySelector('.workspace-color');
             const nameSpan = clone.querySelector('.workspace-name');
+            const tabCountSpan = clone.querySelector('.workspace-tab-count');
             const statusSpan = clone.querySelector('.status-indicator');
             const dragHandle = clone.querySelector('.drag-handle');
 
             const wsColor = workspace.color || '#cccccc';
             nameSpan.textContent = workspace.name;
             colorDiv.style.backgroundColor = wsColor;
+
+            const isOpen = workspace.windowId && openWindowIds.has(workspace.windowId);
+            const tabCount = isOpen && tabCountsByWindow.has(workspace.windowId)
+                ? tabCountsByWindow.get(workspace.windowId)
+                : (Array.isArray(workspace.tabs) ? workspace.tabs.length : 0);
+            tabCountSpan.textContent = this.formatTabCount(tabCount);
+            li.title = `${workspace.name} · ${this.formatTabCount(tabCount)}`;
 
             if (isReordering) {
                 dragHandle.classList.remove('hidden');

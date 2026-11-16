@@ -29,8 +29,10 @@ const PopupLogic = {
 
     async refreshData() {
         const currentWin = await browser.windows.getCurrent();
-        const allWindows = await browser.windows.getAll();
+        const allWindows = await browser.windows.getAll({ populate: true });
         const openWindowIds = new Set(allWindows.map(w => w.id));
+        // Live tab counts for open windows; closed workspaces fall back to saved tabs
+        const tabCountsByWindow = new Map(allWindows.map(w => [w.id, (w.tabs || []).length]));
         const data = await browser.storage.local.get('workspaces');
         const workspaces = data.workspaces || [];
 
@@ -41,7 +43,8 @@ const PopupLogic = {
             (id) => this.switchWorkspace(id),
             (id, name) => this.promptDelete(id, name),
             (ws) => this.startEdit(ws),
-            (from, to, after) => this.handleReorder(from, to, after)
+            (from, to, after) => this.handleReorder(from, to, after),
+            tabCountsByWindow
         );
     },
 

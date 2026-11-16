@@ -1,6 +1,6 @@
 # Technical Overview & Architecture
 
-This document provides a deep dive into the technical decisions, architecture, and evolutionary steps taken during the development of **Firefox Workspaces**.
+This document provides a deep dive into the technical decisions, architecture, and evolutionary steps taken during the development of **Slim Workspaces**.
 
 ## 1. WebExtension Anatomy (MDN Standards)
 Reference: [MDN - Anatomy of a WebExtension](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Anatomy_of_a_WebExtension)

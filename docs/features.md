@@ -1,6 +1,6 @@
-# Project Features: Firefox Workspaces
+# Project Features: Slim Workspaces
 
-This document details the core functionalities implemented in the Firefox Workspaces extension.
+This document details the core functionalities implemented in the Slim Workspaces extension.
 
 ## 1. Workspace Management
 - **Creation:** Create new workspaces with custom names and colors.
@@ -22,6 +22,7 @@ This document details the core functionalities implemented in the Firefox Worksp
 - **Dynamic Toolbar Icon:** The extension's main toolbar icon automatically changes color to match the active workspace in the current window. This provides immediate visual context without opening the popup.
 - **Active Identification:** A prominent "Pill" indicator in the popup header shows the active workspace name with its associated color.
 - **State Indicators:** Visual badges for "Open" workspaces that are currently in other windows.
+- **Tab Count:** Each workspace in the popup shows how many tabs it has (e.g. "12 tabs") under its name, similar to Microsoft Edge. Open workspaces use the live window count; closed ones use the saved tabs.
 - **Reorder Mode:** A toggleable mode to reorganize the workspace list with drag-and-drop handles.
 
 ## 4. Data Portability

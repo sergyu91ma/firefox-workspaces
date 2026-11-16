@@ -1,8 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Workspaces Fork",
-  "version": "1.0.0",
+  "name": "Slim Workspaces",
+  "version": "1.1.0",
   "description": "Workspace management inspired by Microsoft Edge for Firefox.",
+  "icons": {
+    "48": "icons/addon-icon.svg",
+    "96": "icons/addon-icon.svg"
+  },
   "permissions": [
     "tabs",
     "tabHide",
@@ -32,7 +36,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "sergyu91ma@gmail.com",
+      "id": "{7c0959dc-7075-4c19-b65b-38f830975df0}",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["none"],
