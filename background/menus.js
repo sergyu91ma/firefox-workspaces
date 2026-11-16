@@ -87,11 +87,54 @@ const MenusManager = {
     },
 
     /**
-     * Moves a tab to the target workspace window.
+     * Returns the tabs the context-menu action applies to: every selected
+     * (highlighted) tab in the window when the clicked tab is part of the
+     * selection, otherwise only the clicked tab. Mirrors Firefox's own
+     * "Move Tab" behavior.
      */
-    async handleMove(tabId, workspaceId) {
-        Logger.debug(`Menus: Moving tab ${tabId} to workspace ${workspaceId}`);
-        
+    async getTabsForAction(tab) {
+        if (!tab) return [];
+        if (!tab.highlighted) return [tab];
+
+        try {
+            const selected = await browser.tabs.query({ windowId: tab.windowId, highlighted: true });
+            return selected.length > 0 ? selected : [tab];
+        } catch (error) {
+            console.error('Menus: Failed to query selected tabs', error);
+            return [tab];
+        }
+    },
+
+    /**
+     * Updates the root menu title with the number of tabs that will be moved.
+     */
+    async handleShown(info, tab) {
+        if (!info.contexts || !info.contexts.includes('tab')) return;
+
+        const tabs = await this.getTabsForAction(tab);
+        const title = tabs.length > 1
+            ? `Move ${tabs.length} tabs to Workspace`
+            : 'Move tab to Workspace';
+
+        try {
+            await browser.menus.update(this.ROOT_ID, { title });
+            browser.menus.refresh();
+        } catch (error) {
+            console.error('Menus: Failed to update root menu title', error);
+        }
+    },
+
+    /**
+     * Moves the clicked tab, or all selected tabs, to the target workspace window.
+     */
+    async handleMove(tab, workspaceId) {
+        const tabsToMove = await this.getTabsForAction(tab);
+        if (tabsToMove.length === 0) return;
+
+        Logger.debug(`Menus: Moving ${tabsToMove.length} tab(s) to workspace ${workspaceId}`);
+
+        const sourceWindowId = tab.windowId;
+
         // 1. Ensure target window is open
         await WorkspaceManager.openWorkspace(workspaceId);
         
@@ -101,22 +144,40 @@ const MenusManager = {
         // 2. Get the new windowId
         const workspaces = await StorageService.getWorkspaces();
         const ws = workspaces.find(w => w.id === workspaceId);
-        
-        if (ws && ws.windowId) {
-            // 3. Move tab
-            try {
-                await browser.tabs.move(tabId, { windowId: ws.windowId, index: -1 });
-                await browser.tabs.update(tabId, { active: true });
-            } catch (error) {
-                console.error('Menus: Error moving tab', error);
+        if (!ws || !ws.windowId || ws.windowId === sourceWindowId) return;
+
+        try {
+            // 3. Keep the source window alive when every tab is moved out of it.
+            // A closing window skips auto-save, which would leave the moved tabs
+            // duplicated in the source workspace's stored state.
+            const sourceTabs = await browser.tabs.query({ windowId: sourceWindowId });
+            if (sourceTabs.length <= tabsToMove.length) {
+                await browser.tabs.create({ windowId: sourceWindowId, active: true });
             }
+
+            // 4. Move tabs, preserving their order (pinned tabs first, as Firefox requires)
+            const orderedIds = tabsToMove
+                .slice()
+                .sort((a, b) => a.index - b.index)
+                .map(t => t.id);
+
+            await browser.tabs.move(orderedIds, { windowId: ws.windowId, index: -1 });
+
+            const focusTabId = orderedIds.includes(tab.id) ? tab.id : orderedIds[0];
+            await browser.tabs.update(focusTabId, { active: true });
+        } catch (error) {
+            console.error('Menus: Error moving tabs', error);
         }
     }
 };
 
-// --- Register Listener ONCE at top level ---
+// --- Register Listeners ONCE at top level ---
+browser.menus.onShown.addListener((info, tab) => {
+    MenusManager.handleShown(info, tab);
+});
+
 browser.menus.onClicked.addListener((info, tab) => {
     if (info.parentMenuItemId === MenusManager.ROOT_ID) {
-        MenusManager.handleMove(tab.id, info.menuItemId);
+        MenusManager.handleMove(tab, info.menuItemId);
     }
 });

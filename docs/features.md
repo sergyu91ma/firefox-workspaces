@@ -7,6 +7,7 @@ This document details the core functionalities implemented in the Firefox Worksp
 - **Capture:** Convert the current unmanaged window into a new workspace with a single click.
 - **Editing:** Rename or change the color of existing workspaces.
 - **Deletion:** Permanent removal of workspaces with a safety confirmation modal.
+- **Move Tabs to Workspace:** Right-click a tab and choose "Move tab to Workspace" to send it to another workspace (its window opens if needed). When several tabs are selected (Ctrl/Shift+click) and you right-click one of them, all selected tabs are moved together, keeping their order; the menu reads "Move N tabs to Workspace". If every tab of a window is moved, a new tab is left behind so the source workspace window stays open.
 
 ## 2. Session Persistence
 - **Automatic Sync:** Real-time saving of tab changes (creation, movement, updates) within a workspace.
